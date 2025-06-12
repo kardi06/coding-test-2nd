@@ -10,6 +10,7 @@ frontend/.next/
 frontend/out/
 backend/vector_store/
 
+
 # Environment variables
 .env
 .env.local
@@ -44,6 +45,7 @@ __pycache__/
 .pytest_cache/
 venv/
 env/
+backend/venv311/
 
 # Temporary files
 *.tmp

@@ -1,6 +1,7 @@
 from typing import List, Tuple
 from langchain.schema import Document
-from langchain.vectorstores import VectorStore
+from langchain.vectorstores import Chroma
+from langchain.embeddings import OpenAIEmbeddings
 from config import settings
 import logging
 
@@ -10,14 +11,25 @@ logger = logging.getLogger(__name__)
 class VectorStoreService:
     def __init__(self):
         # TODO: Initialize vector store (ChromaDB, FAISS, etc.)
-        pass
+        # embedding using OPENAPI 
+        self.embeddings = OpenAIEmbeddings(
+            openai_api_key=settings.openai_api_key,
+            model=settings.embedding_model
+        )
+        self.persist_path = settings.vector_db_path
+        self.vector_store = Chroma(
+            persist_directory=self.persist_path,
+            embedding_function=self.embeddings,
+            collection_name="documents"
+        )
     
     def add_documents(self, documents: List[Document]) -> None:
         """Add documents to the vector store"""
         # TODO: Implement document addition to vector store
         # - Generate embeddings for documents
         # - Store documents with embeddings in vector database
-        pass
+        self.vector_store.add_documents(documents)
+        self.vector_store.persist() 
     
     def similarity_search(self, query: str, k: int = None) -> List[Tuple[Document, float]]:
         """Search for similar documents"""
@@ -25,7 +37,8 @@ class VectorStoreService:
         # - Generate embedding for query
         # - Search for similar documents in vector store
         # - Return documents with similarity scores
-        pass
+        k = k or settings.retrieval_k
+        return self.vector_store.similarity_search_with_score(query, k=k)
     
     def delete_documents(self, document_ids: List[str]) -> None:
         """Delete documents from vector store"""
@@ -35,4 +48,4 @@ class VectorStoreService:
     def get_document_count(self) -> int:
         """Get total number of documents in vector store"""
         # TODO: Return document count
-        pass 
+        return self.vector_store._collection.count() 
