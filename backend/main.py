@@ -40,6 +40,10 @@ rag_pipeline = None
 async def startup_event():
     """Initialize services on startup"""
     # TODO: Initialize your services
+    global pdf_processor, vector_store, rag_pipeline
+    pdf_processor = PDFProcessor()
+    vector_store = VectorStoreService()
+    # rag_pipeline = RAGPipeline(vector_store=vector_store)
     logger.info("Starting RAG Q&A System...")
 
 
@@ -58,7 +62,20 @@ async def upload_pdf(file: UploadFile = File(...)):
     # 3. Process PDF and extract text
     # 4. Store documents in vector database
     # 5. Return processing results
-    pass
+    if not file.filename.lower().endswith(".pdf"):
+        raise HTTPException(status_code=400, detail="Only PDF files are allowed")
+    file_location = os.path.join(settings.pdf_upload_path, file.filename)
+    os.makedirs(settings.pdf_upload_path, exist_ok=True)
+    with open(file_location, "wb") as f:
+        f.write(await file.read())
+    
+    # Process PDF
+    documents = pdf_processor.process_pdf(file_location)
+    
+    # Store documents in vector database
+    vector_store.add_documents(documents)
+    
+    return {"filename": file.filename, "chunk_count": len(documents), "status": "processed" }
 
 
 @app.post("/api/chat")
