@@ -43,7 +43,7 @@ async def startup_event():
     global pdf_processor, vector_store, rag_pipeline
     pdf_processor = PDFProcessor()
     vector_store = VectorStoreService()
-    # rag_pipeline = RAGPipeline(vector_store=vector_store)
+    rag_pipeline = RAGPipeline(vector_store=vector_store)
     logger.info("Starting RAG Q&A System...")
 
 
@@ -85,7 +85,18 @@ async def chat(request: ChatRequest):
     # 1. Validate request
     # 2. Use RAG pipeline to generate answer
     # 3. Return response with sources
-    pass
+    if not request.question:
+        raise HTTPException(status_code=400, detail="Question is required")
+    
+    # Use RAG pipeline to generate answer
+    try:
+        result = rag_pipeline.generate_answer(request.question, request.chat_history)
+        return result
+    except Exception as e:
+        # logger.error(f"Error generating answer: {e}")
+        logger.error("Error in RAG pipeline")
+        # return JSONResponse(content={"error": str(e)}, status_code=500)
+        raise HTTPException(status_code=500, detail="Failed to generate answer")
 
 
 @app.get("/api/documents")
