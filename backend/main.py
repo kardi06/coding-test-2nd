@@ -141,7 +141,69 @@ async def get_chunks():
     """Get document chunks (optional endpoint)"""
     # TODO: Implement chunk listing
     # - Return document chunks with metadata
-    pass
+    try:
+        # Get all chunks from vector store
+        # Note: This is a workaround since ChromaDB doesn't have direct "get all" method
+        
+        chunks_info = []
+        
+        # Try to get chunks using vector store collection directly
+        if hasattr(vector_store.vector_store, '_collection'):
+            try:
+                # Get data from ChromaDB collection
+                collection_data = vector_store.vector_store._collection.get(
+                    limit=limit,
+                    include=['documents', 'metadatas', 'ids']
+                )
+                
+                # Process the chunks
+                if collection_data and 'documents' in collection_data:
+                    documents = collection_data.get('documents', [])
+                    metadatas = collection_data.get('metadatas', [])
+                    ids = collection_data.get('ids', [])
+                    
+                    for i, (doc_id, content, metadata) in enumerate(zip(ids, documents, metadatas)):
+                        # Filter by page if specified
+                        chunk_page = metadata.get('page', 'unknown')
+                        if page is not None and chunk_page != page:
+                            continue
+                            
+                        chunks_info.append({
+                            "id": doc_id,
+                            "content": content[:200] + "..." if len(content) > 200 else content,  # Preview first 200 chars
+                            "full_content": content,
+                            "page": chunk_page,
+                            "metadata": metadata,
+                            "content_length": len(content)
+                        })
+                
+            except Exception as e:
+                logger.warning(f"Could not access ChromaDB collection directly: {e}")
+                # Fallback: return minimal info
+                document_count = vector_store.get_document_count()
+                return {
+                    "chunks": [],
+                    "total_count": document_count,
+                    "message": "Chunks exist but cannot be retrieved directly. Total count available.",
+                    "filter": {"page": page, "limit": limit}
+                }
+        
+        # Apply limit after filtering
+        if limit and len(chunks_info) > limit:
+            chunks_info = chunks_info[:limit]
+        
+        return {
+            "chunks": chunks_info,
+            "total_count": len(chunks_info),
+            "filter": {
+                "page": page,
+                "limit": limit
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"Error retrieving chunks: {e}")
+        raise HTTPException(status_code=500, detail="Failed to retrieve document chunks")
 
 
 if __name__ == "__main__":
