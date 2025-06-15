@@ -30,11 +30,29 @@ class RAGPipeline:
         docs = [d[0] for d in docs_with_scores if d[1] < settings.similarity_threshold]
         # 2. Generate context from retrieved documents
         context = "\n\n".join([f"(page {doc.metadata.get('page', '?')}): {doc.page_content}" for doc in docs])
+
+        # build chat history
+        chat_context = ""
+        if chat_history and len(chat_history) > 0:
+            # Take last 3 messages for context (to avoid token limit)
+            recent_messages = chat_history[-3:]
+            chat_lines = []
+            for msg in recent_messages:
+                role = msg.get("role", "unknown")
+                content = msg.get("content", "")
+                if role == "user":
+                    chat_lines.append(f"User: {content}")
+                elif role == "assistant":
+                    chat_lines.append(f"Assistant: {content}")
+            if chat_lines:
+                chat_context = f"Previous conversation:\n{chr(10).join(chat_lines)}\n\n"
         prompt = (
             "You are an expert assistant for financial documents.\n"
+            f"{chat_context}"
             f"Context:\n{context}\n"
             f"Question: {question}\n"
-            "Answer (use only the provided context and cite page numbers):"
+            "Answer based on the document context above. If the question refers to previous conversation, "
+            "use that context appropriately. Always cite page numbers when referencing document content:"
         )
         # 3. Generate answer using LLM
         answer = self.llm.invoke(prompt).content
