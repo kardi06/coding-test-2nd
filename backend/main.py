@@ -104,8 +104,37 @@ async def get_documents():
     """Get list of processed documents"""
     # TODO: Implement document listing
     # - Return list of uploaded and processed documents
-    pass
+    try:
+        # Get document count from vector store
+        document_count = vector_store.get_document_count()
 
+        # For now, we'll return basic info since we don't store document metadata separately
+        documents_info = []
+
+        if document_count > 0:
+            # Get all uploaded files from upload directory
+            upload_dir = settings.pdf_upload_path
+            if os.path.exists(upload_dir):
+                for filename in os.listdir(upload_dir):
+                    if filename.lower().endswith(".pdf"):
+                        file_path = os.path.join(upload_dir, filename)
+                        file_stat = os.stat(file_path)
+
+                        documents_info.append({
+                            "filename": filename,
+                            "uploaded_date": file_stat.st_mtime,
+                            "chunks_count": "unknown",
+                            "status": "processed"
+                        })
+        return {
+            "documents": documents_info,
+            "total_count": len(documents_info)
+            "total_chunks": document_count
+        }
+    except Exception as e:
+        logger.error(f"Error getting documents: {e}")
+        raise HTTPException(status_code=500, detail="Failed to retrive documents list")
+                        
 
 @app.get("/api/chunks")
 async def get_chunks():
