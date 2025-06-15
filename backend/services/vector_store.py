@@ -1,7 +1,9 @@
 from typing import List, Tuple
 from langchain.schema import Document
-from langchain.vectorstores import Chroma
-from langchain.embeddings import OpenAIEmbeddings
+# from langchain.vectorstores import Chroma
+from langchain_community.vectorstores import Chroma
+# from langchain.embeddings import OpenAIEmbeddings
+from langchain_openai import OpenAIEmbeddings
 from config import settings
 import logging
 
@@ -28,8 +30,13 @@ class VectorStoreService:
         # TODO: Implement document addition to vector store
         # - Generate embeddings for documents
         # - Store documents with embeddings in vector database
-        self.vector_store.add_documents(documents)
-        self.vector_store.persist() 
+        try:
+            self.vector_store.add_documents(documents)
+            self.vector_store.persist()
+            logger.info(f"Successfully added {len(documents)} documents")
+        except Exception as e:
+            logger.error(f"Error to add documents: {e}")
+            raise
     
     def similarity_search(self, query: str, k: int = None) -> List[Tuple[Document, float]]:
         """Search for similar documents"""

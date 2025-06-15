@@ -23,7 +23,6 @@ class PDFProcessor:
         # TODO: Implement PDF text extraction
         # - Use pdfplumber or PyPDF2 to extract text from each page
         # - Return list of dictionaries with page content and metadata
-        import pdfplumber
         pages_content = []
         with pdfplumber.open(file_path) as pdf:
             for i, page in enumerate(pdf.pages):
