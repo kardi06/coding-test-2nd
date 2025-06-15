@@ -28,7 +28,7 @@ class Settings(BaseSettings):
     
     # Retrieval configuration
     retrieval_k: int = int(os.getenv("RETRIEVAL_K", "5"))
-    similarity_threshold: float = float(os.getenv("SIMILARITY_THRESHOLD", "0.7"))
+    similarity_threshold: float = float(os.getenv("SIMILARITY_THRESHOLD", "1.0"))
     
     # Server configuration
     host: str = os.getenv("HOST", "0.0.0.0")

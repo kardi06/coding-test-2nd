@@ -6,6 +6,7 @@ from services.pdf_processor import PDFProcessor
 from services.vector_store import VectorStoreService
 from services.rag_pipeline import RAGPipeline
 from config import settings
+from datetime import datetime
 import logging
 import time
 import os
@@ -78,7 +79,7 @@ async def upload_pdf(file: UploadFile = File(...)):
     return {"filename": file.filename, "chunk_count": len(documents), "status": "processed" }
 
 
-@app.post("/api/chat")
+@app.post("/api/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest):
     """Process chat request and return AI response"""
     # TODO: Implement chat functionality
@@ -94,13 +95,22 @@ async def chat(request: ChatRequest):
     logger.info(f"Processing chat request - Question length: {len(request.question)}, "f"Chat history items: {len(request.chat_history) if request.chat_history else 0}")
 
     try:
+        # Start timing
+        start_time = time.time()
+        
         # Generate answer using RAG pipeline 
         result = rag_pipeline.generate_answer(request.question, request.chat_history)
+
+        # Calculate processing time
+        processing_time = time.time() - start_time
 
         # Validate response
         if not result or "answer" not in result:
             logger.error("RAG pipeline returned invalid response structure")
             raise HTTPException(status_code=500, detail="Invalid response from AI system")
+        
+        # Add processing time to response
+        result["processing_time"] = processing_time
         
         # Log successful response (without sensitive content)
         logger.info(f"Successfully generated answer - Length: {len(result.get('answer', ''))}, "f"Sources: {len(result.get('sources', []))}")
@@ -138,7 +148,7 @@ async def chat(request: ChatRequest):
         )
 
 
-@app.get("/api/documents")
+@app.get("/api/documents", response_model=DocumentsResponse)
 async def get_documents():
     """Get list of processed documents"""
     # TODO: Implement document listing
@@ -161,18 +171,18 @@ async def get_documents():
 
                         documents_info.append({
                             "filename": filename,
-                            "uploaded_date": file_stat.st_mtime,
-                            "chunks_count": "unknown",
+                            "upload_date": datetime.fromtimestamp(file_stat.st_mtime),
+                            "chunks_count": 0,
                             "status": "processed"
                         })
         return {
             "documents": documents_info,
-            "total_count": len(documents_info)
+            "total_count": len(documents_info),
             "total_chunks": document_count
         }
     except Exception as e:
         logger.error(f"Error getting documents: {e}")
-        raise HTTPException(status_code=500, detail="Failed to retrive documents list")
+        raise HTTPException(status_code=500, detail="Failed to retrieve documents list")
                         
 
 @app.get("/api/chunks")
