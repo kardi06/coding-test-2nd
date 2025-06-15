@@ -85,18 +85,57 @@ async def chat(request: ChatRequest):
     # 1. Validate request
     # 2. Use RAG pipeline to generate answer
     # 3. Return response with sources
-    if not request.question:
-        raise HTTPException(status_code=400, detail="Question is required")
     
-    # Use RAG pipeline to generate answer
+    # input validation
+    if not request.question or not request.question.strip():
+        raise HTTPException(status_code=400, detail="Question cannot be empty")
+
+    # Log incoming request (without sensitive data)
+    logger.info(f"Processing chat request - Question length: {len(request.question)}, "f"Chat history items: {len(request.chat_history) if request.chat_history else 0}")
+
     try:
+        # Generate answer using RAG pipeline 
         result = rag_pipeline.generate_answer(request.question, request.chat_history)
+
+        # Validate response
+        if not result or "answer" not in result:
+            logger.error("RAG pipeline returned invalid response structure")
+            raise HTTPException(status_code=500, detail="Invalid response from AI system")
+        
+        # Log successful response (without sensitive content)
+        logger.info(f"Successfully generated answer - Length: {len(result.get('answer', ''))}, "f"Sources: {len(result.get('sources', []))}")
+        
         return result
+    except HTTPException:
+        # Re-raise HTTP exceptions (they're already handled)
+        raise
+        
+    except ValueError as e:
+        # Handle validation errors (bad input format, etc.)
+        logger.error(f"Validation error in chat request: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Invalid request format: {str(e)}")
+        
+    except ConnectionError as e:
+        # Handle network/API connection issues (OpenAI API, etc.)
+        logger.error(f"Connection error in chat processing: {str(e)}")
+        raise HTTPException(status_code=503, detail="AI service temporarily unavailable. Please try again later.")
+        
+    except TimeoutError as e:
+        # Handle timeout issues
+        logger.error(f"Timeout error in chat processing: {str(e)}")
+        raise HTTPException(status_code=504, detail="Request timed out. Please try again with a shorter question.")
+
     except Exception as e:
-        # logger.error(f"Error generating answer: {e}")
-        logger.error("Error in RAG pipeline")
-        # return JSONResponse(content={"error": str(e)}, status_code=500)
-        raise HTTPException(status_code=500, detail="Failed to generate answer")
+        # Catch-all for unexpected errors
+        error_id = f"chat_error_{int(time.time())}"
+        logger.error(f"Unexpected error in chat processing [ID: {error_id}]: {str(e)}", 
+                    exc_info=True)  # Include stack trace
+        
+        # Return user-friendly error with error ID for support
+        raise HTTPException(
+            status_code=500, 
+            detail=f"An unexpected error occurred. Please try again or contact support with error ID: {error_id}"
+        )
 
 
 @app.get("/api/documents")
@@ -137,7 +176,7 @@ async def get_documents():
                         
 
 @app.get("/api/chunks")
-async def get_chunks():
+async def get_chunks(page: int = None, limit: int = 50):
     """Get document chunks (optional endpoint)"""
     # TODO: Implement chunk listing
     # - Return document chunks with metadata
