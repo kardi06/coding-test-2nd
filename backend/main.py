@@ -73,8 +73,8 @@ async def upload_pdf(file: UploadFile = File(...)):
     # Process PDF
     documents = pdf_processor.process_pdf(file_location)
     
-    # Store documents in vector database
-    vector_store.add_documents(documents)
+    # Store documents in vector database with filename for metadata tracking
+    vector_store.add_documents(documents, filename=file.filename)
     
     return {"filename": file.filename, "chunk_count": len(documents), "status": "processed" }
 
@@ -154,31 +154,16 @@ async def get_documents():
     # TODO: Implement document listing
     # - Return list of uploaded and processed documents
     try:
-        # Get document count from vector store
-        document_count = vector_store.get_document_count()
-
-        # For now, we'll return basic info since we don't store document metadata separately
-        documents_info = []
-
-        if document_count > 0:
-            # Get all uploaded files from upload directory
-            upload_dir = settings.pdf_upload_path
-            if os.path.exists(upload_dir):
-                for filename in os.listdir(upload_dir):
-                    if filename.lower().endswith(".pdf"):
-                        file_path = os.path.join(upload_dir, filename)
-                        file_stat = os.stat(file_path)
-
-                        documents_info.append({
-                            "filename": filename,
-                            "upload_date": datetime.fromtimestamp(file_stat.st_mtime),
-                            "chunks_count": 0,
-                            "status": "processed"
-                        })
+        # Get documents info from vector store metadata
+        documents_info = vector_store.get_documents_info()
+        
+        # Get total document count from vector store
+        total_chunks = vector_store.get_document_count()
+        
         return {
             "documents": documents_info,
             "total_count": len(documents_info),
-            "total_chunks": document_count
+            "total_chunks": total_chunks
         }
     except Exception as e:
         logger.error(f"Error getting documents: {e}")
