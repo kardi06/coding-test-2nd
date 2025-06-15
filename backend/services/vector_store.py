@@ -50,7 +50,21 @@ class VectorStoreService:
     def delete_documents(self, document_ids: List[str]) -> None:
         """Delete documents from vector store"""
         # TODO: Implement document deletion
-        pass
+        if not document_ids:
+            logger.warning("No document IDs provided for deletion")
+            return
+        try:
+            #check if vector store has delete method
+            if hasattr(self.vector_store, "delete"):
+                self.vector_store.delete(ids=document_ids)
+            else:
+                #Direct ChromaDB delete
+                self.vector_store._collection.delete(ids=document_ids)
+            
+            logger.info(f"Successfully deleted {len(document_ids)} documents")
+        except Exception as e:
+            logger.error(f"Error to delete documents: {e}")
+            raise
     
     def get_document_count(self) -> int:
         """Get total number of documents in vector store"""
